@@ -5,6 +5,6 @@
   "scripts": {
     "postinstall": "cd backend && npm install && cd ../frontend && npm install",
     "build": "cd frontend && npm run build",
-    "start": "cd backend && node server.js"
+    "start": "cd backend && node setup_db.js && node server.js"
   }
 }
