@@ -59,6 +59,17 @@ const StatCard = ({ title, value, icon: Icon, iconColor, delay = 0 }) => {
   );
 };
 
+// Helper for invoice number format: INV-YYYYMMDDxxx (e.g. INV-20260906001)
+const formatInvoiceNumber = (inv) => {
+  if (inv.invoice_number) return inv.invoice_number;
+  const d = inv.date ? new Date(inv.date) : new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const sno = String(inv.id || 1).padStart(3, '0');
+  return `INV-${year}${month}${day}${sno}`;
+};
+
 const Dashboard = () => {
   const [stats, setStats] = useState({ components: 0, invoices: 0, revenue: '₹0', lowStock: 0 });
   const [recentInvoices, setRecentInvoices] = useState([]);
@@ -129,7 +140,7 @@ const Dashboard = () => {
                 <tbody>
                   {recentInvoices.map(inv => (
                     <tr key={inv.id} className="table-row-hover" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                      <td className="py-3.5 font-bold" style={{ color: '#C9A84C', fontSize: '0.9rem' }}>INV-{inv.id}</td>
+                      <td className="py-3.5 font-bold font-mono" style={{ color: '#C9A84C', fontSize: '0.85rem' }}>{formatInvoiceNumber(inv)}</td>
                       <td className="py-3.5 text-sm">{inv.customer_name}</td>
                       <td className="py-3.5 text-sm" style={{ color: 'rgba(255,255,255,0.4)' }}>
                         {new Date(inv.date).toLocaleDateString()}

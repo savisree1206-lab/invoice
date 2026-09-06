@@ -94,6 +94,13 @@ const BillDesk = () => {
         return;
       }
 
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const sno = String(data.id || 1).padStart(3, '0');
+      const formattedInvoiceNumber = data.invoice_number || `INV-${year}${month}${day}${sno}`;
+
       setInvoiceData({
         ...customerInfo,
         items: [...cart],
@@ -103,7 +110,7 @@ const BillDesk = () => {
         total,
         date: new Date().toLocaleDateString(),
         time: new Date().toLocaleTimeString(),
-        invoiceNumber: `INV-${data.id || Math.floor(Math.random() * 10000)}`
+        invoiceNumber: formattedInvoiceNumber
       });
       setShowInvoice(true);
       fetchComponents(); // refresh stock

@@ -148,18 +148,43 @@ app.post('/api/invoices', async (req, res) => {
       }
     }
 
-    res.status(201).json({ id: invoiceId, message: 'Invoice created successfully' });
+    // Helper to format invoice numbers: INV-YYYYMMDDxxx (e.g., INV-20260906001)
+    const formatInvoiceNumber = (id, date) => {
+      const d = date ? new Date(date) : new Date();
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const sno = String(id || 1).padStart(3, '0');
+      return `INV-${year}${month}${day}${sno}`;
+    };
+
+    const invoiceNumber = formatInvoiceNumber(invoiceId, new Date());
+    res.status(201).json({ id: invoiceId, invoice_number: invoiceNumber, message: 'Invoice created successfully' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to create invoice' });
   }
 });
 
+// Helper for formatInvoiceNumber
+function formatInvoiceNumber(id, date) {
+  const d = date ? new Date(date) : new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const sno = String(id || 1).padStart(3, '0');
+  return `INV-${year}${month}${day}${sno}`;
+}
+
 // Get all invoices
 app.get('/api/invoices', async (req, res) => {
   try {
     const [rows] = await db.query('SELECT * FROM invoices ORDER BY date DESC');
-    res.json(rows);
+    const formatted = rows.map(r => ({
+      ...r,
+      invoice_number: formatInvoiceNumber(r.id, r.date)
+    }));
+    res.json(formatted);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch invoices' });
@@ -176,7 +201,11 @@ app.get('/api/invoices/:id', async (req, res) => {
       'SELECT ii.*, c.name AS component_name FROM invoice_items ii LEFT JOIN components c ON ii.component_id = c.id WHERE ii.invoice_id = ?',
       [id]
     );
-    res.json({ ...invoice, items });
+    res.json({
+      ...invoice,
+      invoice_number: formatInvoiceNumber(invoice.id, invoice.date),
+      items
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch invoice' });
