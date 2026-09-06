@@ -139,15 +139,15 @@ const BillDesk = () => {
   const filteredComponents = components.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <div className="h-full flex flex-col lg:flex-row gap-6">
+    <div className="min-h-full flex flex-col lg:flex-row gap-6 items-start">
       {/* Products Selection */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col w-full">
         <div className="mb-6">
           <h2 className="text-3xl font-bold font-display mb-2">New Bill</h2>
           <p className="text-gray-400">Select items to add to the invoice.</p>
         </div>
 
-        <div className="glass-panel flex-1 flex flex-col p-6">
+        <div className="glass-panel flex-1 flex flex-col p-6 min-h-[420px]">
           <input
             type="text"
             placeholder="Search products, services..."
@@ -156,7 +156,7 @@ const BillDesk = () => {
             onChange={e => setSearch(e.target.value)}
           />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 overflow-auto flex-1 content-start pr-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 overflow-auto flex-1 content-start pr-2 max-h-[600px]">
             {filteredComponents.map(comp => (
               <div
                 key={comp.id}
@@ -185,120 +185,154 @@ const BillDesk = () => {
       </div>
 
       {/* Cart & Checkout */}
-      <div className="w-full lg:w-96 flex flex-col gap-6">
-        <div className="glass-panel p-6">
-          <h3 className="font-display font-bold text-xl mb-4 flex items-center">
-            <ShoppingCart className="mr-2 text-primary" size={20} />
+      <div className="w-full lg:w-[420px] flex-shrink-0 flex flex-col gap-5">
+        <div className="glass-panel p-5">
+          <h3 className="font-display font-bold text-lg mb-3 flex items-center text-white">
+            <ShoppingCart className="mr-2 text-primary" size={18} />
             Customer Info
           </h3>
-          <div className="space-y-4">
-            <input
-              type="text"
-              placeholder="Customer Name"
-              className="input-field text-sm"
-              value={customerInfo.name}
-              onChange={e => setCustomerInfo({ ...customerInfo, name: e.target.value })}
-            />
-            <input
-              type="text"
-              placeholder="Contact Number (Optional)"
-              className="input-field text-sm"
-              value={customerInfo.contact}
-              onChange={e => setCustomerInfo({ ...customerInfo, contact: e.target.value })}
-            />
-            <div className="flex items-center space-x-2">
-              <span className="text-gray-400 text-sm w-24">Shipping ₹</span>
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <input
-                type="number"
-                placeholder="0.00"
-                className="input-field text-sm flex-1"
-                value={shippingCharge}
-                onChange={e => setShippingCharge(e.target.value)}
+                type="text"
+                placeholder="Customer Name *"
+                className="input-field text-sm"
+                value={customerInfo.name}
+                onChange={e => setCustomerInfo({ ...customerInfo, name: e.target.value })}
+              />
+              <input
+                type="text"
+                placeholder="Contact (Optional)"
+                className="input-field text-sm"
+                value={customerInfo.contact}
+                onChange={e => setCustomerInfo({ ...customerInfo, contact: e.target.value })}
               />
             </div>
-
-            {/* Discount Field */}
-            <div className="flex items-center space-x-2">
-              <span className="flex items-center gap-1 text-sm w-24" style={{ color: '#4ade80' }}>
-                <Tag size={13} />
-                Discount ₹
-              </span>
-              <input
-                type="number"
-                placeholder="0.00"
-                className="input-field text-sm flex-1"
-                value={discountAmount}
-                min="0"
-                style={{ borderColor: discountAmount ? 'rgba(74,222,128,0.4)' : undefined }}
-                onChange={e => setDiscountAmount(e.target.value)}
-              />
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="flex items-center space-x-1.5 bg-black/30 border border-white/10 rounded-lg px-2.5 py-1.5 focus-within:border-primary/50 transition-colors">
+                <span className="text-gray-400 text-xs whitespace-nowrap">Shipping ₹</span>
+                <input
+                  type="number"
+                  placeholder="0.00"
+                  className="bg-transparent text-sm text-white w-full outline-none"
+                  value={shippingCharge}
+                  onChange={e => setShippingCharge(e.target.value)}
+                />
+              </div>
+              <div className="flex items-center space-x-1.5 bg-black/30 border border-white/10 rounded-lg px-2.5 py-1.5 focus-within:border-emerald-500/50 transition-colors">
+                <span className="flex items-center gap-0.5 text-xs text-emerald-400 whitespace-nowrap">
+                  <Tag size={11} /> Disc ₹
+                </span>
+                <input
+                  type="number"
+                  placeholder="0.00"
+                  min="0"
+                  className="bg-transparent text-sm text-white w-full outline-none"
+                  value={discountAmount}
+                  onChange={e => setDiscountAmount(e.target.value)}
+                />
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="glass-panel p-6 flex-1 flex flex-col relative overflow-hidden">
+        <div className="glass-panel p-5 flex flex-col relative overflow-hidden">
           <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-primary-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
-          <h3 className="font-display font-bold text-xl mb-4">Invoice Items</h3>
-
-          <div className="flex-1 overflow-auto -mx-2 px-2">
-            {cart.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-gray-500 text-sm">
-                Cart is empty
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {cart.map(item => (
-                  <div key={item.id} className="p-3 rounded-xl border" style={{ background: 'rgba(201,168,76,0.04)', borderColor: 'rgba(201,168,76,0.12)' }}>
-                    <div className="flex justify-between mb-2">
-                      <span className="font-medium text-sm truncate pr-2">{item.name}</span>
-                      <span className="text-green-400 text-sm font-medium">₹{(Number(item.price) * item.quantity).toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-400">₹{Number(item.price).toFixed(2)} x {item.quantity}</span>
-                      <div className="flex items-center space-x-2 p-1 rounded-md" style={{ background: 'rgba(201,168,76,0.08)' }}>
-                        <button onClick={() => updateQuantity(item.id, -1)} className="p-1 hover:bg-white/10 rounded text-gray-400">
-                          <Minus size={14} />
-                        </button>
-                        <span className="text-sm font-medium w-4 text-center">{item.quantity}</span>
-                        <button onClick={() => updateQuantity(item.id, 1)} className="p-1 hover:bg-white/10 rounded text-gray-400">
-                          <Plus size={14} />
-                        </button>
-                        <button onClick={() => removeFromCart(item.id)} className="p-1 hover:bg-red-500/20 rounded text-red-400 ml-2">
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <h3 className="font-display font-bold text-lg text-white">Invoice Items</h3>
+              <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: 'rgba(201,168,76,0.15)', color: '#C9A84C', border: '1px solid rgba(201,168,76,0.3)' }}>
+                {cart.reduce((sum, item) => sum + item.quantity, 0)} {cart.reduce((sum, item) => sum + item.quantity, 0) === 1 ? 'item' : 'items'}
+              </span>
+            </div>
+            {cart.length > 0 && (
+              <button
+                onClick={() => setCart([])}
+                className="text-xs text-gray-400 hover:text-red-400 transition-colors"
+                title="Clear all items"
+              >
+                Clear
+              </button>
             )}
           </div>
 
-          <div className="mt-6 pt-4 space-y-2" style={{ borderTop: '1px solid rgba(201,168,76,0.15)' }}>
+          <div className="min-h-[160px] max-h-[300px] overflow-y-auto pr-1 space-y-2.5">
+            {cart.length === 0 ? (
+              <div className="h-36 flex flex-col items-center justify-center text-gray-500 text-sm border border-dashed border-white/10 rounded-xl">
+                <ShoppingCart size={24} className="mb-2 text-gray-600 opacity-60" />
+                <span>Cart is empty</span>
+                <span className="text-xs text-gray-600 mt-1">Select items from the left to add</span>
+              </div>
+            ) : (
+              cart.map(item => (
+                <div
+                  key={item.id}
+                  className="p-3 rounded-xl border transition-all"
+                  style={{ background: 'rgba(201,168,76,0.04)', borderColor: 'rgba(201,168,76,0.15)' }}
+                >
+                  <div className="flex justify-between items-start gap-2 mb-2">
+                    <span className="font-medium text-sm text-white leading-snug line-clamp-2">{item.name}</span>
+                    <span className="text-emerald-400 text-sm font-semibold whitespace-nowrap">₹{(Number(item.price) * item.quantity).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-400 font-mono">₹{Number(item.price).toFixed(2)} / unit</span>
+                    <div className="flex items-center space-x-1.5 p-1 rounded-lg" style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.15)' }}>
+                      <button
+                        onClick={() => updateQuantity(item.id, -1)}
+                        className="w-6 h-6 flex items-center justify-center hover:bg-white/10 rounded text-gray-300 transition-colors"
+                        title="Decrease"
+                      >
+                        <Minus size={13} />
+                      </button>
+                      <span className="text-sm font-semibold w-5 text-center text-white">{item.quantity}</span>
+                      <button
+                        onClick={() => updateQuantity(item.id, 1)}
+                        className="w-6 h-6 flex items-center justify-center hover:bg-white/10 rounded text-gray-300 transition-colors"
+                        title="Increase"
+                      >
+                        <Plus size={13} />
+                      </button>
+                      <button
+                        onClick={() => removeFromCart(item.id)}
+                        className="w-6 h-6 flex items-center justify-center hover:bg-red-500/20 rounded text-red-400 ml-1 transition-colors"
+                        title="Remove"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="mt-4 pt-3 space-y-2" style={{ borderTop: '1px solid rgba(201,168,76,0.18)' }}>
             <div className="flex justify-between items-center text-sm">
-              <span style={{ color: 'rgba(255,255,255,0.5)' }}>Subtotal</span>
-              <span style={{ color: 'rgba(255,255,255,0.8)' }}>₹{subtotal.toFixed(2)}</span>
+              <span className="text-gray-400">Subtotal</span>
+              <span className="text-gray-200 font-medium font-mono">₹{subtotal.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between items-center text-sm">
-              <span style={{ color: 'rgba(255,255,255,0.5)' }}>Shipping</span>
-              <span style={{ color: 'rgba(255,255,255,0.8)' }}>₹{shipping.toFixed(2)}</span>
-            </div>
-            {discount > 0 && (
+            {shipping > 0 && (
               <div className="flex justify-between items-center text-sm">
-                <span className="flex items-center gap-1" style={{ color: '#4ade80' }}>
-                  <Tag size={12} /> Discount
-                </span>
-                <span style={{ color: '#4ade80' }}>−₹{discount.toFixed(2)}</span>
+                <span className="text-gray-400">Shipping</span>
+                <span className="text-gray-200 font-medium font-mono">₹{shipping.toFixed(2)}</span>
               </div>
             )}
-            <div className="flex justify-between items-center pt-2" style={{ borderTop: '1px solid rgba(201,168,76,0.15)' }}>
-              <span className="font-semibold" style={{ color: 'rgba(255,255,255,0.6)' }}>Total Amount</span>
+            {discount > 0 && (
+              <div className="flex justify-between items-center text-sm">
+                <span className="flex items-center gap-1 text-emerald-400 font-medium">
+                  <Tag size={12} /> Discount
+                </span>
+                <span className="text-emerald-400 font-medium font-mono">−₹{discount.toFixed(2)}</span>
+              </div>
+            )}
+            <div className="flex justify-between items-center pt-2.5 pb-1" style={{ borderTop: '1px solid rgba(201,168,76,0.18)' }}>
+              <span className="font-semibold text-gray-300">Total Amount</span>
               <span className="text-3xl font-display font-black stat-number">₹{total.toFixed(2)}</span>
             </div>
 
             {errorMsg && (
-              <div className="mb-3 p-3 rounded-lg text-sm font-medium" style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171' }}>
+              <div className="p-2.5 rounded-lg text-xs font-medium" style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171' }}>
                 {errorMsg}
               </div>
             )}
@@ -306,7 +340,7 @@ const BillDesk = () => {
             <button
               onClick={handleCheckout}
               disabled={cart.length === 0 || isSubmitting}
-              className="btn-gold w-full py-3 rounded-xl font-bold flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+              className="btn-gold w-full py-3 mt-1 rounded-xl font-bold flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
             >
               <Printer className="mr-2" size={18} />
               {isSubmitting ? 'Generating...' : 'Generate Invoice'}
