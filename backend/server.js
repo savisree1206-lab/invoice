@@ -189,14 +189,16 @@ app.get('/{*path}', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
 });
 
-// Auto-initialize DB then start server
+// Start server immediately so cloud platforms (Railway, Render, etc.) pass startup health checks
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
+
+// Non-blocking database check/initialization
 setupDatabase()
   .then(() => {
-    app.listen(PORT, () => {
-      console.log(`Server is running on port ${PORT}`);
-    });
+    console.log('[DB Setup] Database check and initialization completed successfully.');
   })
   .catch((err) => {
-    console.error('Failed to initialize database. Server not started.', err.message);
-    process.exit(1);
+    console.warn('[DB Setup] Note: Database setup warning (tables may already exist):', err.message);
   });

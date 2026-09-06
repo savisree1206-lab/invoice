@@ -15,8 +15,12 @@ async function setupDatabase() {
     const dbName = process.env.DB_NAME || 'infinite_services_db';
     console.log(`[DB Setup] Connected. Setting up database: ${dbName}`);
 
-    // Create DB if not exists
-    await connection.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
+    // Create DB if not exists (non-fatal on cloud environments where DB is pre-provisioned)
+    try {
+      await connection.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
+    } catch (e) {
+      console.log(`[DB Setup] CREATE DATABASE skipped (${e.message}), using existing \`${dbName}\``);
+    }
     await connection.query(`USE \`${dbName}\``);
 
     // Create tables if not exist
