@@ -1,0 +1,382 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   GLOBAL BASE
+   ============================================================ */
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    @apply bg-background text-white;
+    font-family: 'Inter', sans-serif;
+    overflow-x: hidden;
+    background: radial-gradient(ellipse at 20% 20%, rgba(201, 168, 76, 0.05) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(201, 168, 76, 0.03) 0%, transparent 50%),
+                #080808;
+  }
+
+  /* 3D perspective root */
+  #root {
+    perspective: 2000px;
+  }
+}
+
+/* ============================================================
+   COMPONENT CLASSES
+   ============================================================ */
+@layer components {
+
+  /* ---- Glass / 3D Card ---- */
+  .glass-panel {
+    background: linear-gradient(135deg, rgba(26,26,26,0.9) 0%, rgba(15,15,15,0.95) 100%);
+    border: 1px solid rgba(201, 168, 76, 0.2);
+    border-radius: 16px;
+    backdrop-filter: blur(12px);
+    position: relative;
+    overflow: hidden;
+    transform-style: preserve-3d;
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+                box-shadow 0.4s ease,
+                border-color 0.3s ease;
+    box-shadow:
+      0 4px 24px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 rgba(201, 168, 76, 0.1);
+  }
+
+  .glass-panel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(201, 168, 76, 0.04) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .glass-panel:hover {
+    border-color: rgba(201, 168, 76, 0.45);
+    box-shadow:
+      0 8px 40px rgba(0, 0, 0, 0.6),
+      0 0 30px rgba(201, 168, 76, 0.12),
+      inset 0 1px 0 rgba(201, 168, 76, 0.2);
+    transform: translateY(-3px) translateZ(8px);
+  }
+
+  /* ---- 3D Stat Card ---- */
+  .card-3d {
+    transform-style: preserve-3d;
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s ease;
+  }
+
+  .card-3d:hover {
+    transform: rotateX(-4deg) rotateY(4deg) translateZ(12px);
+    box-shadow:
+      8px 16px 40px rgba(0, 0, 0, 0.6),
+      0 0 25px rgba(201, 168, 76, 0.15);
+  }
+
+  /* ---- Gold Button ---- */
+  .btn-gold {
+    background: linear-gradient(135deg, #C9A84C 0%, #E8C96A 50%, #C9A84C 100%);
+    background-size: 200% auto;
+    color: #000;
+    font-weight: 700;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 28px;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    transform-style: preserve-3d;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(201, 168, 76, 0.3), 0 2px 4px rgba(0,0,0,0.3);
+    letter-spacing: 0.02em;
+  }
+
+  .btn-gold::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(255,255,255,0.2) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  .btn-gold::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.5s, height 0.5s, opacity 0.5s;
+    opacity: 0;
+  }
+
+  .btn-gold:hover {
+    background-position: right center;
+    box-shadow: 0 8px 30px rgba(201, 168, 76, 0.5), 0 4px 8px rgba(0,0,0,0.4);
+    transform: translateY(-2px) translateZ(4px);
+  }
+
+  .btn-gold:hover::after {
+    width: 300px;
+    height: 300px;
+    opacity: 0;
+  }
+
+  .btn-gold:disabled {
+    background: rgba(255,255,255,0.05);
+    color: #555;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+  }
+
+  /* ---- Input Fields ---- */
+  .input-field {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(201, 168, 76, 0.2);
+    border-radius: 10px;
+    padding: 10px 14px;
+    color: #fff;
+    font-size: 0.9rem;
+    font-family: 'Inter', sans-serif;
+    outline: none;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.2s ease;
+    transform-style: preserve-3d;
+  }
+
+  .input-field::placeholder {
+    color: rgba(255, 255, 255, 0.3);
+  }
+
+  .input-field:focus {
+    border-color: rgba(201, 168, 76, 0.6);
+    box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.1), 0 2px 8px rgba(201, 168, 76, 0.15);
+    transform: translateZ(2px);
+  }
+
+  /* ---- Sidebar Nav Item ---- */
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    color: rgba(255, 255, 255, 0.5);
+    font-weight: 500;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    position: relative;
+    overflow: hidden;
+    transform-style: preserve-3d;
+    text-decoration: none;
+  }
+
+  .nav-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%) scaleY(0);
+    width: 3px;
+    height: 70%;
+    background: linear-gradient(180deg, #C9A84C, #E8C96A);
+    border-radius: 0 3px 3px 0;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .nav-item:hover {
+    color: #C9A84C;
+    background: rgba(201, 168, 76, 0.08);
+    transform: translateX(4px) translateZ(4px);
+  }
+
+  .nav-item:hover::before {
+    transform: translateY(-50%) scaleY(1);
+  }
+
+  .nav-item.active {
+    color: #C9A84C;
+    background: rgba(201, 168, 76, 0.12);
+    box-shadow: inset 0 1px 0 rgba(201, 168, 76, 0.15);
+  }
+
+  .nav-item.active::before {
+    transform: translateY(-50%) scaleY(1);
+  }
+
+  /* ---- Gold Badge ---- */
+  .badge-gold {
+    background: linear-gradient(135deg, rgba(201, 168, 76, 0.2), rgba(232, 201, 106, 0.1));
+    border: 1px solid rgba(201, 168, 76, 0.3);
+    color: #C9A84C;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  /* ---- Gold Divider ---- */
+  .gold-divider {
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(201, 168, 76, 0.4), transparent);
+  }
+
+  /* ---- Spinning logo ---- */
+  .logo-spin {
+    animation: rotateLogo 12s linear infinite;
+    filter: drop-shadow(0 0 12px rgba(201, 168, 76, 0.5));
+  }
+
+  @keyframes rotateLogo {
+    0% { transform: rotateY(0deg) rotateX(5deg); }
+    50% { transform: rotateY(180deg) rotateX(-5deg); }
+    100% { transform: rotateY(360deg) rotateX(5deg); }
+  }
+
+  /* ---- Float animation for sidebar logo ---- */
+  .logo-float {
+    animation: floatY 4s ease-in-out infinite;
+    filter: drop-shadow(0 8px 20px rgba(201, 168, 76, 0.4));
+  }
+
+  @keyframes floatY {
+    0%, 100% { transform: translateY(0px) scale(1); }
+    50% { transform: translateY(-8px) scale(1.02); }
+  }
+
+  /* ---- Particle glow orbs ---- */
+  .orb {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    animation: orbPulse 6s ease-in-out infinite;
+  }
+
+  @keyframes orbPulse {
+    0%, 100% { opacity: 0.15; transform: scale(1); }
+    50% { opacity: 0.3; transform: scale(1.1); }
+  }
+
+  /* ---- 3D Tilt card wrapper ---- */
+  .tilt-card {
+    transition: transform 0.15s ease;
+    transform-style: preserve-3d;
+  }
+
+  /* ---- Number counter ---- */
+  .stat-number {
+    font-family: 'Outfit', sans-serif;
+    background: linear-gradient(135deg, #C9A84C, #E8C96A, #fff 80%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ---- Table row hover ---- */
+  .table-row-hover {
+    transition: all 0.2s ease;
+    transform-style: preserve-3d;
+  }
+
+  .table-row-hover:hover {
+    background: rgba(201, 168, 76, 0.06);
+    transform: translateZ(2px);
+  }
+
+  /* ---- Gold shimmer text ---- */
+  .shimmer-text {
+    background: linear-gradient(90deg, #C9A84C 0%, #E8C96A 25%, #fff 50%, #E8C96A 75%, #C9A84C 100%);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: shimmer 4s linear infinite;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: 0% center; }
+    100% { background-position: 200% center; }
+  }
+
+  /* ---- Page entrance animation ---- */
+  .page-enter {
+    animation: pageEnter 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+
+  @keyframes pageEnter {
+    from {
+      opacity: 0;
+      transform: translateY(20px) translateZ(-30px) rotateX(3deg);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) translateZ(0) rotateX(0deg);
+    }
+  }
+
+  /* ---- Product card click effect ---- */
+  .product-card {
+    transform-style: preserve-3d;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    cursor: pointer;
+  }
+
+  .product-card:hover {
+    transform: translateY(-4px) translateZ(10px) rotateX(-2deg);
+    border-color: rgba(201, 168, 76, 0.5) !important;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.5), 0 0 20px rgba(201, 168, 76, 0.15);
+  }
+
+  .product-card:active {
+    transform: translateY(-1px) translateZ(4px) scale(0.99);
+  }
+
+  /* ---- Scrollbar ---- */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(201, 168, 76, 0.3);
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(201, 168, 76, 0.6);
+  }
+}
+
+/* ============================================================
+   PRINT STYLES
+   ============================================================ */
+@media print {
+  @page {
+    /* Removes the browser's default headers and footers (URL, date, title, page number) */
+    margin: 0; 
+  }
+  
+  body {
+    /* Re-add a safe margin inside the page so the content isn't cut off by the printer's physical margins */
+    margin: 1cm;
+    background: #fff !important;
+    color: #000 !important;
+  }
+}
