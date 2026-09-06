@@ -13,4 +13,4 @@ cmds = [
 ]
 
 [start]
-cmd = "cd backend && node server.js"
+cmd = "cd backend && node setup_db.js; node server.js"
