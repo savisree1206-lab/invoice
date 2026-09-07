@@ -1,27 +1,36 @@
 const mysql = require('mysql2/promise');
 require('dotenv').config();
 
+function getLocalDatePrefix(date) {
+  const d = date ? new Date(date) : new Date();
+  const ist = d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+  const [year, month, day] = ist.split('-');
+  return `INV-${year}${month}${day}`;
+}
+
 async function setupDatabase() {
   let connection;
+  const dbName = process.env.DB_NAME || process.env.MYSQLDATABASE || process.env.MYSQL_DATABASE || 'infinite_services_db';
+  const connConfig = {
+    host: process.env.DB_HOST || process.env.MYSQLHOST || process.env.MYSQL_HOST || 'localhost',
+    port: parseInt(process.env.DB_PORT || process.env.MYSQLPORT || process.env.MYSQL_PORT) || 3306,
+    user: process.env.DB_USER || process.env.MYSQLUSER || process.env.MYSQL_USER || 'root',
+    password: process.env.DB_PASSWORD || process.env.MYSQLPASSWORD || process.env.MYSQL_PASSWORD || ''
+  };
+
   try {
-    // Connect WITHOUT specifying a database first (Railway requires this)
-    connection = await mysql.createConnection({
-      host: process.env.DB_HOST || 'localhost',
-      port: parseInt(process.env.DB_PORT) || 3306,
-      user: process.env.DB_USER || 'root',
-      password: process.env.DB_PASSWORD || ''
-    });
-
-    const dbName = process.env.DB_NAME || 'infinite_services_db';
-    console.log(`[DB Setup] Connected. Setting up database: ${dbName}`);
-
-    // Create DB if not exists (non-fatal on cloud environments where DB is pre-provisioned)
+    // Try connecting directly with database name first (standard on Railway/cloud)
     try {
+      connection = await mysql.createConnection({ ...connConfig, database: dbName });
+      console.log(`[DB Setup] Connected directly to database: ${dbName}`);
+    } catch (directErr) {
+      // If direct connect failed (e.g. database not created yet on localhost), connect without database and create it
+      console.log(`[DB Setup] Direct connection to ${dbName} failed (${directErr.message}), connecting to server root...`);
+      connection = await mysql.createConnection(connConfig);
       await connection.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
-    } catch (e) {
-      console.log(`[DB Setup] CREATE DATABASE skipped (${e.message}), using existing \`${dbName}\``);
+      await connection.query(`USE \`${dbName}\``);
+      console.log(`[DB Setup] Created and switched to database: ${dbName}`);
     }
-    await connection.query(`USE \`${dbName}\``);
 
     // Create tables if not exist
     await connection.query(`
@@ -39,7 +48,7 @@ async function setupDatabase() {
     await connection.query(`
       CREATE TABLE IF NOT EXISTS invoices (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        invoice_number VARCHAR(50) UNIQUE,
+        invoice_number VARCHAR(50),
         customer_name VARCHAR(255) NOT NULL,
         customer_contact VARCHAR(50),
         discount DECIMAL(10, 2) NOT NULL DEFAULT 0,
@@ -48,45 +57,24 @@ async function setupDatabase() {
       )
     `);
 
-    // Ensure invoice_number column exists if table was previously created without it
+    // Ensure invoice_number column exists
     const [invCols] = await connection.query("SHOW COLUMNS FROM invoices LIKE 'invoice_number'");
     if (invCols.length === 0) {
       console.log('[DB Setup] Adding invoice_number column to invoices table...');
       await connection.query("ALTER TABLE invoices ADD COLUMN invoice_number VARCHAR(50) AFTER id");
     }
 
-    // Backfill any invoices that have NULL or empty invoice_number
-    const [unassignedInvoices] = await connection.query(
-      "SELECT id, date FROM invoices WHERE invoice_number IS NULL OR invoice_number = '' ORDER BY date ASC, id ASC"
-    );
-
-    if (unassignedInvoices.length > 0) {
-      console.log(`[DB Setup] Backfilling invoice numbers for ${unassignedInvoices.length} existing invoices...`);
+    // Normalize and ensure all invoices strictly follow the daily sequence starting at 001 for each date
+    const [allInvoices] = await connection.query("SELECT id, date FROM invoices ORDER BY date ASC, id ASC");
+    if (allInvoices.length > 0) {
+      console.log(`[DB Setup] Normalizing daily sequential invoice numbers for ${allInvoices.length} invoices...`);
       const dateCounters = {};
-      for (const row of unassignedInvoices) {
-        const d = row.date ? new Date(row.date) : new Date();
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        const prefix = `INV-${year}${month}${day}`;
-
-        if (dateCounters[prefix] === undefined) {
-          const [maxRow] = await connection.query(
-            "SELECT invoice_number FROM invoices WHERE invoice_number LIKE ? ORDER BY LENGTH(invoice_number) DESC, invoice_number DESC LIMIT 1",
-            [`${prefix}%`]
-          );
-          if (maxRow.length > 0 && maxRow[0].invoice_number) {
-            const numPart = maxRow[0].invoice_number.slice(prefix.length);
-            dateCounters[prefix] = parseInt(numPart, 10) || 0;
-          } else {
-            dateCounters[prefix] = 0;
-          }
-        }
-
-        dateCounters[prefix]++;
+      for (const row of allInvoices) {
+        const prefix = getLocalDatePrefix(row.date);
+        dateCounters[prefix] = (dateCounters[prefix] || 0) + 1;
         const invNum = `${prefix}${String(dateCounters[prefix]).padStart(3, '0')}`;
         await connection.query("UPDATE invoices SET invoice_number = ? WHERE id = ?", [invNum, row.id]);
-        console.log(`[DB Setup] Assigned ${invNum} to invoice ID ${row.id}`);
+        console.log(`[DB Setup] Set invoice #${row.id} to ${invNum}`);
       }
     }
 

@@ -71,7 +71,11 @@ const BillDesk = () => {
       return;
     }
     setErrorMsg('');
-    setIsSubmitting(true);
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const clientDate = `${year}-${month}-${day}`;
 
     try {
       const res = await fetch('/api/invoices', {
@@ -82,6 +86,7 @@ const BillDesk = () => {
           customer_contact: customerInfo.contact,
           discount: discount,
           total_amount: total,
+          client_date: clientDate,
           items: cart.map(c => ({ component_id: c.id, description: c.name, quantity: c.quantity, price: c.price }))
         })
       });
@@ -94,9 +99,6 @@ const BillDesk = () => {
         return;
       }
 
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
       const formattedInvoiceNumber = data.invoice_number || `INV-${year}${month}${day}001`;
 
       setInvoiceData({

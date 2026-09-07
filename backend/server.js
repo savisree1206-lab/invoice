@@ -102,13 +102,21 @@ app.delete('/api/components/:id', async (req, res) => {
 // --- Invoices API ---
 
 // Create a new invoice
-// Helper to generate sequential daily invoice number (resets to 001 for each date)
-async function generateDailyInvoiceNumber(connection, date) {
+// Helper to resolve local date prefix: INV-YYYYMMDD
+function getLocalDatePrefix(date, clientDate) {
+  if (clientDate && /^\d{4}-\d{2}-\d{2}$/.test(clientDate)) {
+    const [y, m, d] = clientDate.split('-');
+    return `INV-${y}${m}${d}`;
+  }
   const d = date ? new Date(date) : new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  const prefix = `INV-${year}${month}${day}`;
+  const ist = d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+  const [year, month, day] = ist.split('-');
+  return `INV-${year}${month}${day}`;
+}
+
+// Helper to generate sequential daily invoice number (resets to 001 for each date)
+async function generateDailyInvoiceNumber(connection, date, clientDate) {
+  const prefix = getLocalDatePrefix(date, clientDate);
 
   // Find the highest sequence number for this specific date prefix
   const [rows] = await connection.query(
@@ -133,17 +141,14 @@ function formatInvoiceNumber(invoice) {
   if (invoice && invoice.invoice_number) {
     return invoice.invoice_number;
   }
-  const d = invoice && invoice.date ? new Date(invoice.date) : new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
+  const prefix = getLocalDatePrefix(invoice && invoice.date);
   const sno = String((invoice && invoice.id) || 1).padStart(3, '0');
-  return `INV-${year}${month}${day}${sno}`;
+  return `${prefix}${sno}`;
 }
 
 // Create a new invoice
 app.post('/api/invoices', async (req, res) => {
-  const { customer_name, customer_contact, total_amount, discount, items, date } = req.body;
+  const { customer_name, customer_contact, total_amount, discount, items, date, client_date } = req.body;
   
   if (!customer_name || total_amount === undefined || total_amount === null || !items || items.length === 0) {
     return res.status(400).json({ error: 'Invalid invoice data' });
@@ -173,7 +178,7 @@ app.post('/api/invoices', async (req, res) => {
 
     // Generate daily invoice number (resets to 001 for each date)
     const invoiceDate = date ? new Date(date) : new Date();
-    const invoiceNumber = await generateDailyInvoiceNumber(connection, invoiceDate);
+    const invoiceNumber = await generateDailyInvoiceNumber(connection, invoiceDate, client_date);
 
     // Insert invoice with generated invoice_number
     const [invoiceResult] = await connection.query(
@@ -243,6 +248,46 @@ app.get('/api/invoices/:id', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch invoice' });
+  }
+});
+
+// Delete an invoice (and restore component stock)
+app.delete('/api/invoices/:id', async (req, res) => {
+  const { id } = req.params;
+  let connection;
+  try {
+    connection = await db.getConnection();
+    await connection.beginTransaction();
+
+    // Check if invoice exists
+    const [[invoice]] = await connection.query('SELECT * FROM invoices WHERE id = ? FOR UPDATE', [id]);
+    if (!invoice) {
+      await connection.rollback();
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+
+    // Restore stock for components in this invoice
+    const [items] = await connection.query('SELECT component_id, quantity FROM invoice_items WHERE invoice_id = ?', [id]);
+    for (const item of items) {
+      if (item.component_id) {
+        await connection.query(
+          'UPDATE components SET stock = stock + ? WHERE id = ?',
+          [item.quantity, item.component_id]
+        );
+      }
+    }
+
+    // Delete invoice (invoice_items will be deleted automatically via ON DELETE CASCADE)
+    await connection.query('DELETE FROM invoices WHERE id = ?', [id]);
+
+    await connection.commit();
+    res.json({ message: 'Invoice deleted successfully' });
+  } catch (err) {
+    if (connection) await connection.rollback();
+    console.error(err);
+    res.status(500).json({ error: 'Failed to delete invoice' });
+  } finally {
+    if (connection) connection.release();
   }
 });
 
