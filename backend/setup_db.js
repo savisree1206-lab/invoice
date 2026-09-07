@@ -39,6 +39,7 @@ async function setupDatabase() {
     await connection.query(`
       CREATE TABLE IF NOT EXISTS invoices (
         id INT AUTO_INCREMENT PRIMARY KEY,
+        invoice_number VARCHAR(50) UNIQUE,
         customer_name VARCHAR(255) NOT NULL,
         customer_contact VARCHAR(50),
         discount DECIMAL(10, 2) NOT NULL DEFAULT 0,
@@ -46,6 +47,55 @@ async function setupDatabase() {
         date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    // Ensure invoice_number column exists if table was previously created without it
+    const [invCols] = await connection.query("SHOW COLUMNS FROM invoices LIKE 'invoice_number'");
+    if (invCols.length === 0) {
+      console.log('[DB Setup] Adding invoice_number column to invoices table...');
+      await connection.query("ALTER TABLE invoices ADD COLUMN invoice_number VARCHAR(50) AFTER id");
+    }
+
+    // Backfill any invoices that have NULL or empty invoice_number
+    const [unassignedInvoices] = await connection.query(
+      "SELECT id, date FROM invoices WHERE invoice_number IS NULL OR invoice_number = '' ORDER BY date ASC, id ASC"
+    );
+
+    if (unassignedInvoices.length > 0) {
+      console.log(`[DB Setup] Backfilling invoice numbers for ${unassignedInvoices.length} existing invoices...`);
+      const dateCounters = {};
+      for (const row of unassignedInvoices) {
+        const d = row.date ? new Date(row.date) : new Date();
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const prefix = `INV-${year}${month}${day}`;
+
+        if (dateCounters[prefix] === undefined) {
+          const [maxRow] = await connection.query(
+            "SELECT invoice_number FROM invoices WHERE invoice_number LIKE ? ORDER BY LENGTH(invoice_number) DESC, invoice_number DESC LIMIT 1",
+            [`${prefix}%`]
+          );
+          if (maxRow.length > 0 && maxRow[0].invoice_number) {
+            const numPart = maxRow[0].invoice_number.slice(prefix.length);
+            dateCounters[prefix] = parseInt(numPart, 10) || 0;
+          } else {
+            dateCounters[prefix] = 0;
+          }
+        }
+
+        dateCounters[prefix]++;
+        const invNum = `${prefix}${String(dateCounters[prefix]).padStart(3, '0')}`;
+        await connection.query("UPDATE invoices SET invoice_number = ? WHERE id = ?", [invNum, row.id]);
+        console.log(`[DB Setup] Assigned ${invNum} to invoice ID ${row.id}`);
+      }
+    }
+
+    // Ensure unique index on invoice_number
+    try {
+      await connection.query("ALTER TABLE invoices ADD UNIQUE KEY uq_invoice_number (invoice_number)");
+    } catch (e) {
+      // index already exists or non-fatal
+    }
 
     await connection.query(`
       CREATE TABLE IF NOT EXISTS invoice_items (

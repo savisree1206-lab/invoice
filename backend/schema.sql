@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS components (
 
 CREATE TABLE IF NOT EXISTS invoices (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    invoice_number VARCHAR(50) UNIQUE,
     customer_name VARCHAR(255) NOT NULL,
     customer_contact VARCHAR(50),
     discount DECIMAL(10, 2) NOT NULL DEFAULT 0,

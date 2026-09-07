@@ -97,9 +97,7 @@ const BillDesk = () => {
       const now = new Date();
       const year = now.getFullYear();
       const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      const sno = String(data.id || 1).padStart(3, '0');
-      const formattedInvoiceNumber = data.invoice_number || `INV-${year}${month}${day}${sno}`;
+      const formattedInvoiceNumber = data.invoice_number || `INV-${year}${month}${day}001`;
 
       setInvoiceData({
         ...customerInfo,

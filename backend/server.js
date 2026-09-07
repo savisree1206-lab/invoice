@@ -102,87 +102,121 @@ app.delete('/api/components/:id', async (req, res) => {
 // --- Invoices API ---
 
 // Create a new invoice
+// Helper to generate sequential daily invoice number (resets to 001 for each date)
+async function generateDailyInvoiceNumber(connection, date) {
+  const d = date ? new Date(date) : new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const prefix = `INV-${year}${month}${day}`;
+
+  // Find the highest sequence number for this specific date prefix
+  const [rows] = await connection.query(
+    'SELECT invoice_number FROM invoices WHERE invoice_number LIKE ? ORDER BY LENGTH(invoice_number) DESC, invoice_number DESC LIMIT 1 FOR UPDATE',
+    [`${prefix}%`]
+  );
+
+  let nextSeq = 1;
+  if (rows.length > 0 && rows[0].invoice_number) {
+    const numPart = rows[0].invoice_number.slice(prefix.length);
+    const parsed = parseInt(numPart, 10);
+    if (!isNaN(parsed)) {
+      nextSeq = parsed + 1;
+    }
+  }
+
+  return `${prefix}${String(nextSeq).padStart(3, '0')}`;
+}
+
+// Helper fallback for formatInvoiceNumber
+function formatInvoiceNumber(invoice) {
+  if (invoice && invoice.invoice_number) {
+    return invoice.invoice_number;
+  }
+  const d = invoice && invoice.date ? new Date(invoice.date) : new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const sno = String((invoice && invoice.id) || 1).padStart(3, '0');
+  return `INV-${year}${month}${day}${sno}`;
+}
+
+// Create a new invoice
 app.post('/api/invoices', async (req, res) => {
-  const { customer_name, customer_contact, total_amount, discount, items } = req.body;
+  const { customer_name, customer_contact, total_amount, discount, items, date } = req.body;
   
   if (!customer_name || total_amount === undefined || total_amount === null || !items || items.length === 0) {
     return res.status(400).json({ error: 'Invalid invoice data' });
   }
 
   const discountAmount = parseFloat(discount) || 0;
+  let connection;
 
   try {
-    // Start transaction if possible, but for simplicity we'll just do sequential queries
-    const [invoiceResult] = await db.query(
-      'INSERT INTO invoices (customer_name, customer_contact, discount, total_amount) VALUES (?, ?, ?, ?)',
-      [customer_name, customer_contact || '', discountAmount, total_amount]
-    );
-    const invoiceId = invoiceResult.insertId;
+    connection = await db.getConnection();
+    await connection.beginTransaction();
 
     // Validate stock before inserting
     for (const item of items) {
       if (item.component_id) {
-        const [[comp]] = await db.query('SELECT stock FROM components WHERE id = ?', [item.component_id]);
+        const [[comp]] = await connection.query('SELECT stock FROM components WHERE id = ? FOR UPDATE', [item.component_id]);
         if (!comp) {
+          await connection.rollback();
           return res.status(400).json({ error: `Component ID ${item.component_id} not found` });
         }
         if (comp.stock < item.quantity) {
+          await connection.rollback();
           return res.status(400).json({ error: `Insufficient stock for item: ${item.description}. Available: ${comp.stock}` });
         }
       }
     }
 
-    // Insert items
+    // Generate daily invoice number (resets to 001 for each date)
+    const invoiceDate = date ? new Date(date) : new Date();
+    const invoiceNumber = await generateDailyInvoiceNumber(connection, invoiceDate);
+
+    // Insert invoice with generated invoice_number
+    const [invoiceResult] = await connection.query(
+      'INSERT INTO invoices (invoice_number, customer_name, customer_contact, discount, total_amount, date) VALUES (?, ?, ?, ?, ?, ?)',
+      [invoiceNumber, customer_name, customer_contact || '', discountAmount, total_amount, invoiceDate]
+    );
+    const invoiceId = invoiceResult.insertId;
+
+    // Insert items and deduct stock
     for (const item of items) {
-      await db.query(
+      await connection.query(
         'INSERT INTO invoice_items (invoice_id, component_id, description, quantity, price) VALUES (?, ?, ?, ?, ?)',
         [invoiceId, item.component_id, item.description, item.quantity, item.price]
       );
 
-      // Deduct stock only after validation passed
+      // Deduct stock
       if (item.component_id) {
-        await db.query(
+        await connection.query(
           'UPDATE components SET stock = stock - ? WHERE id = ?',
           [item.quantity, item.component_id]
         );
       }
     }
 
-    // Helper to format invoice numbers: INV-YYYYMMDDxxx (e.g., INV-20260906001)
-    const formatInvoiceNumber = (id, date) => {
-      const d = date ? new Date(date) : new Date();
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      const sno = String(id || 1).padStart(3, '0');
-      return `INV-${year}${month}${day}${sno}`;
-    };
+    await connection.commit();
 
-    const invoiceNumber = formatInvoiceNumber(invoiceId, new Date());
     res.status(201).json({ id: invoiceId, invoice_number: invoiceNumber, message: 'Invoice created successfully' });
   } catch (err) {
+    if (connection) await connection.rollback();
     console.error(err);
     res.status(500).json({ error: 'Failed to create invoice' });
+  } finally {
+    if (connection) connection.release();
   }
 });
-
-// Helper for formatInvoiceNumber
-function formatInvoiceNumber(id, date) {
-  const d = date ? new Date(date) : new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  const sno = String(id || 1).padStart(3, '0');
-  return `INV-${year}${month}${day}${sno}`;
-}
 
 // Get all invoices
 app.get('/api/invoices', async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM invoices ORDER BY date DESC');
+    const [rows] = await db.query('SELECT * FROM invoices ORDER BY date DESC, id DESC');
     const formatted = rows.map(r => ({
       ...r,
-      invoice_number: formatInvoiceNumber(r.id, r.date)
+      invoice_number: r.invoice_number || formatInvoiceNumber(r)
     }));
     res.json(formatted);
   } catch (err) {
@@ -203,7 +237,7 @@ app.get('/api/invoices/:id', async (req, res) => {
     );
     res.json({
       ...invoice,
-      invoice_number: formatInvoiceNumber(invoice.id, invoice.date),
+      invoice_number: invoice.invoice_number || formatInvoiceNumber(invoice),
       items
     });
   } catch (err) {
