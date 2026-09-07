@@ -341,7 +341,7 @@ app.get('/{*path}', (req, res) => {
 });
 
 // Start server immediately so cloud platforms (Railway, Render, etc.) pass startup health checks
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`);
   ensureDatabaseSchema();
 });

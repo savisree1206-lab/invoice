@@ -129,7 +129,7 @@ function App() {
             style={{ background: 'linear-gradient(135deg, rgba(201,168,76,0.08), rgba(201,168,76,0.02))', border: '1px solid rgba(201,168,76,0.15)' }}>
             <Sparkles size={16} className="text-gold-500 mx-auto mb-1" />
             <p className="text-xs text-gold-500/60 font-medium">Infinite Services</p>
-            <p className="text-xs text-white/30 mt-0.5">v1.0 Beta</p>
+            <p className="text-xs text-white/30 mt-0.5">v1.1</p>
           </div>
 
           {/* Gold bottom accent line */}
