@@ -10,6 +10,7 @@ function getLocalDatePrefix(date) {
 
 async function setupDatabase() {
   let connection;
+  const dbUrl = process.env.MYSQL_URL || process.env.DATABASE_URL;
   const dbName = process.env.DB_NAME || process.env.MYSQLDATABASE || process.env.MYSQL_DATABASE || 'infinite_services_db';
   const connConfig = {
     host: process.env.DB_HOST || process.env.MYSQLHOST || process.env.MYSQL_HOST || 'localhost',
@@ -19,17 +20,22 @@ async function setupDatabase() {
   };
 
   try {
-    // Try connecting directly with database name first (standard on Railway/cloud)
-    try {
-      connection = await mysql.createConnection({ ...connConfig, database: dbName });
-      console.log(`[DB Setup] Connected directly to database: ${dbName}`);
-    } catch (directErr) {
-      // If direct connect failed (e.g. database not created yet on localhost), connect without database and create it
-      console.log(`[DB Setup] Direct connection to ${dbName} failed (${directErr.message}), connecting to server root...`);
-      connection = await mysql.createConnection(connConfig);
-      await connection.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
-      await connection.query(`USE \`${dbName}\``);
-      console.log(`[DB Setup] Created and switched to database: ${dbName}`);
+    if (dbUrl) {
+      connection = await mysql.createConnection(dbUrl);
+      console.log(`[DB Setup] Connected via connection URL.`);
+    } else {
+      // Try connecting directly with database name first (standard on Railway/cloud)
+      try {
+        connection = await mysql.createConnection({ ...connConfig, database: dbName });
+        console.log(`[DB Setup] Connected directly to database: ${dbName}`);
+      } catch (directErr) {
+        // If direct connect failed (e.g. database not created yet on localhost), connect without database and create it
+        console.log(`[DB Setup] Direct connection to ${dbName} failed (${directErr.message}), connecting to server root...`);
+        connection = await mysql.createConnection(connConfig);
+        await connection.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
+        await connection.query(`USE \`${dbName}\``);
+        console.log(`[DB Setup] Created and switched to database: ${dbName}`);
+      }
     }
 
     // Create tables if not exist

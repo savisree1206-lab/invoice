@@ -291,15 +291,59 @@ app.delete('/api/invoices/:id', async (req, res) => {
   }
 });
 
+// Direct schema check using the active db connection pool
+async function ensureDatabaseSchema() {
+  try {
+    const [cols] = await db.query("SHOW COLUMNS FROM invoices LIKE 'invoice_number'");
+    if (cols.length === 0) {
+      console.log('[DB] Adding invoice_number column to invoices table...');
+      await db.query("ALTER TABLE invoices ADD COLUMN invoice_number VARCHAR(50) AFTER id");
+    }
+
+    // Normalize daily sequence for all invoices so every date starts from 001
+    const [allInvoices] = await db.query("SELECT id, date FROM invoices ORDER BY date ASC, id ASC");
+    if (allInvoices.length > 0) {
+      console.log(`[DB] Normalizing daily sequence for ${allInvoices.length} invoices...`);
+      const dateCounters = {};
+      for (const row of allInvoices) {
+        const prefix = getLocalDatePrefix(row.date);
+        dateCounters[prefix] = (dateCounters[prefix] || 0) + 1;
+        const invNum = `${prefix}${String(dateCounters[prefix]).padStart(3, '0')}`;
+        await db.query("UPDATE invoices SET invoice_number = ? WHERE id = ?", [invNum, row.id]);
+      }
+      console.log('[DB] Invoices normalized successfully.');
+    }
+
+    try {
+      await db.query("ALTER TABLE invoices ADD UNIQUE KEY uq_invoice_number (invoice_number)");
+    } catch (e) {}
+  } catch (err) {
+    console.error('[DB] Schema check note:', err.message);
+  }
+}
+
 // --- Serve Frontend (Production) ---
-app.use(express.static(path.join(__dirname, '../frontend/dist')));
+app.use(express.static(path.join(__dirname, '../frontend/dist'), {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  }
+}));
+
 app.get('/{*path}', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
 });
 
 // Start server immediately so cloud platforms (Railway, Render, etc.) pass startup health checks
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+  ensureDatabaseSchema();
 });
 
 // Non-blocking database check/initialization

@@ -101,23 +101,22 @@ const Dashboard = () => {
     fetchData();
   }, [fetchData]);
 
-  // Open invoice view modal by fetching full details (including line items)
+  // Open invoice view modal immediately with summary, then populate items
   const handleOpenInvoice = async (inv) => {
-    setIsLoadingInvoice(true);
+    setSelectedInvoice({
+      ...inv,
+      invoice_number: inv.invoice_number || formatInvoiceNumber(inv),
+      items: []
+    });
     setShowDeleteConfirm(false);
     try {
       const res = await fetch(`/api/invoices/${inv.id}`);
-      if (!res.ok) throw new Error('Failed to fetch invoice details');
-      const data = await res.json();
-      setSelectedInvoice(data);
+      if (res.ok) {
+        const data = await res.json();
+        setSelectedInvoice(data);
+      }
     } catch (err) {
-      console.error(err);
-      setSelectedInvoice({
-        ...inv,
-        items: []
-      });
-    } finally {
-      setIsLoadingInvoice(false);
+      console.error('Error fetching invoice items:', err);
     }
   };
 
@@ -245,16 +244,22 @@ const Dashboard = () => {
                         ₹{Number(inv.total_amount).toFixed(2)}
                       </td>
                       <td className="py-3.5 text-right">
-                        <span
-                          className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg transition-all"
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenInvoice(inv);
+                          }}
+                          className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg transition-all hover:scale-105"
                           style={{
-                            background: 'rgba(201,168,76,0.08)',
+                            background: 'rgba(201,168,76,0.15)',
                             color: '#C9A84C',
-                            border: '1px solid rgba(201,168,76,0.2)'
+                            border: '1px solid rgba(201,168,76,0.3)',
+                            cursor: 'pointer'
                           }}
                         >
                           <Eye size={12} /> View
-                        </span>
+                        </button>
                       </td>
                     </tr>
                   ))}
